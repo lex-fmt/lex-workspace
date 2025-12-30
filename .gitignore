@@ -1,0 +1,17 @@
+# Child repositories (cloned by setup.sh)
+core/
+editors/
+tools/
+lexed/
+nvim/
+vscode/
+comms/
+
+# Build artifacts
+target/
+
+# OS files
+.DS_Store
+
+# Local tooling
+.padz/
