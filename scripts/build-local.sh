@@ -99,6 +99,14 @@ EOF
 
 echo "Patching editors/ to use local dependencies..."
 
+CARGO_LOCK="$EDITORS_DIR/Cargo.lock"
+CARGO_LOCK_BACKUP="$CARGO_LOCK.local-build-bak"
+
+# Backup Cargo.lock
+if [[ -f "$CARGO_LOCK" ]]; then
+  cp "$CARGO_LOCK" "$CARGO_LOCK_BACKUP"
+fi
+
 cleanup() {
   # Restore or remove cargo config
   if [[ -f "$CARGO_CONFIG_BACKUP" ]]; then
@@ -106,6 +114,10 @@ cleanup() {
   else
     rm -f "$CARGO_CONFIG"
     rmdir "$CARGO_CONFIG_DIR" 2>/dev/null || true
+  fi
+  # Restore Cargo.lock
+  if [[ -f "$CARGO_LOCK_BACKUP" ]]; then
+    mv "$CARGO_LOCK_BACKUP" "$CARGO_LOCK"
   fi
 }
 trap cleanup EXIT
