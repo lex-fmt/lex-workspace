@@ -11,7 +11,7 @@ This document tracks the implementation status of Lex features across different 
 | **Navigation** |
 | Go to Definition | ✅ | ✅ | ✅ | ✅ | Headers, footnotes |
 | Find References | ✅ | ✅ | ✅ | ✅ | Headers, footnotes |
-| Annotation Nav | ✅ | ❌ | ❌ | ❌ | `next/previous_annotation` cmds |
+| Annotation Nav | ✅ | ❌ | ✅ | ❌ | `next/previous_annotation` cmds |
 | **Formatting** |
 | Document Format | ✅ | ✅ | ✅ | ✅ | |
 | Range Format | ✅ | ✅ | ✅ | ❓ | |

@@ -76,7 +76,13 @@ LOCAL DEVELOPMENT (Cross-Component Changes)
 RELEASING
 
   Releases follow the dependency order. Each repo has GitHub Actions that
-  trigger on version tags (v*):
+  trigger on version tags (v*). The CI will publish new versions of crates to 
+  crates.io and build the cli binaries, editor plugins and the Lexed desktop app 
+  in the GitHub release for the respective repo / project. 
+  
+  Remember to update the cargo.toml and package.json and lua files with the new 
+  binaries versions for lex-lsp. Also update these files with the new version
+   number , commit and push **before** creating the release tags. 
 
   1. Release lex-core (if changed):
        cd core && git tag v0.X.Y && git push --tags
