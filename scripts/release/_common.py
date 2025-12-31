@@ -154,3 +154,9 @@ def get_repo_details(component):
         # Repo root is likely ROOT_DIR/vscode. relative path is .?
         return repo_root, "."
     raise ValueError(f"Unknown component {component}")
+
+def get_tag_name(component, version):
+    """Standardized tag name: component-vVersion"""
+    # Always prefix? Or only for multi-crate repos?
+    # User requested standardized naming. Prefixing everything is safest.
+    return f"{component}-v{version}"

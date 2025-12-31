@@ -47,7 +47,7 @@ def main():
         print(f"Could not determine repo path for {component}")
         sys.exit(1)
 
-    tag_name = f"v{new_version}"
+    tag_name = _common.get_tag_name(component, new_version)
     commit_msg = f"chore: release {tag_name}"
     
     print(f"Committing and tagging in {repo_path}...")

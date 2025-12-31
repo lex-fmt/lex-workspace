@@ -39,7 +39,7 @@ def update_cargo_dep(crate, dep_name, new_version):
     # Or Inline: `lex-core = "0.2.2"` anywhere?
     # We should look for `dep_name = "OLD"` or `dep_name = { ..., version = "OLD", ... }`
     
-    update_toml_dep(target_toml, dep_name, new_version)
+    return update_toml_dep(target_toml, dep_name, new_version)
 
 def update_toml_dep(path, dep_name, new_version):
     full_path = os.path.join(_common.ROOT_DIR, path)
@@ -76,12 +76,15 @@ def update_toml_dep(path, dep_name, new_version):
         if exists:
              # Found but identical
              print(f"Dependency {dep_name} in {path} already {new_version} (or no change needed)")
+             return "CLEAN"
         else:
              print(f"Warning: No usage of {dep_name} found in {path} to update.")
+             return "MISSING"
     else:
         with open(full_path, 'w') as f:
             f.write(content)
         print(f"Updated dependency {dep_name} to {new_version} in {path}")
+        return "UPDATED"
 
 
 def update_json_dep(tool, dep_name, new_version):
