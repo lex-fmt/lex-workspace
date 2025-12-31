@@ -1,0 +1,35 @@
+#!/usr/bin/env python3
+"""
+Release Manager - Unified release automation for Lex workspace.
+
+Usage:
+    release-manager <command> [options]
+
+Commands:
+    check-status          Show release status report
+    get-version           Get version of a component
+    set-version           Set version of a component
+    set-dep-version       Set dependency version
+    bump-version          Calculate next version
+    update                Update component version (bump + set)
+    release               Release a component (update + commit + tag)
+    propagate-deps        Propagate library versions to dependents
+    propagate-lsp         Propagate LSP version to clients
+    release-all           Full release orchestration
+    release-all-crates    Release all crates with changes
+
+Run 'release-manager <command> --help' for more information on a command.
+"""
+
+import os
+import sys
+
+# Add the scripts/release directory to Python path so releasemanager package is importable
+script_dir = os.path.dirname(os.path.abspath(__file__))
+if script_dir not in sys.path:
+    sys.path.insert(0, script_dir)
+
+from releasemanager.cli import main
+
+if __name__ == "__main__":
+    main()
