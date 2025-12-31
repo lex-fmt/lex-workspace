@@ -5,6 +5,21 @@ import subprocess
 import os
 import _set_dep_version
 
+# Global list to collect push commands
+PUSH_COMMANDS = []
+
+def record_push_command(component):
+    repo_root, _ = _common.get_repo_details(component)
+    # Use relative path from CWD for readability if running from root
+    try:
+        rel_path = os.path.relpath(repo_root, os.getcwd())
+    except:
+        rel_path = repo_root
+        
+    cmd = f"pushd {rel_path} && git push && git push --tags && popd"
+    # Avoid duplicates if multiple components in same monorepo release
+    if cmd not in PUSH_COMMANDS:
+        PUSH_COMMANDS.append(cmd)
 
 def release_if_changed(component, force=False):
     """Checks for git diff (tag..HEAD), bumps patch if needed."""
@@ -45,6 +60,7 @@ def release_if_changed(component, force=False):
         print(f"[{component}] Releasing patch...")
         try:
             _common.run_command(f"{sys.executable} {release_script} {component} patch")
+            record_push_command(component)
             return _common.get_current_version(component) # Return new version
         except Exception as e:
             print(f"[{component}] Release failed: {e}")
@@ -151,6 +167,16 @@ def main():
     print("\nRelease Cycle Complete!")
     status_script = os.path.join(os.path.dirname(__file__), "check-status.py")
     subprocess.call([sys.executable, status_script])
+
+    if PUSH_COMMANDS:
+        print("\n" + "="*40)
+        print("SYNC REQUIRED! Run these commands to push:")
+        print("="*40)
+        for cmd in PUSH_COMMANDS:
+             print(cmd)
+        print("="*40 + "\n")
+    else:
+        print("\nAll synced (or no releases needed).")
 
 if __name__ == "__main__":
     main()

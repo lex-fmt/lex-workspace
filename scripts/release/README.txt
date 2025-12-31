@@ -9,6 +9,9 @@ Philosophy & Constraints
     *   `update-*` = Modifies files locally (e.g., bumps version, updates cargo.toml).
     *   `release-*` = Performs full release cycle (Update -> Commit -> Tag -> Push).
 *   **Version Source of Truth**: `Cargo.toml` (Crates), `package.json` (JS), `init.lua` (Nvim).
+*   **Tagging Strategy**:
+    *   **Single-Component Repos** (e.g., `lex-core`): Uses standard `vX.Y.Z` (e.g., `v0.2.2`).
+    *   **Monorepos** (e.g., `editors` containing `lex-lsp`, `lex-analysis`): Uses prefixed `Component-vX.Y.Z` (e.g., `lex-lsp-v0.2.3`) to avoid global namespace collisions.
 
 File Structure (`scripts/release/`)
 -----------------------------------
