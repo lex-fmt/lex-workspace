@@ -1,0 +1,35 @@
+#!/usr/bin/env sh
+
+# Run a command in each sub-repository and return to the main repo
+# Usage: ./scripts/run-in-sub-repos "command to run"
+
+if [ -z "$1" ]; then
+  echo "Usage: $0 \"command\""
+  echo "Example: $0 \"git status\""
+  exit 1
+fi
+
+COMMAND="$1"
+MAIN_DIR="$(pwd)"
+
+# List of sub-repositories from README.txt
+REPOS="core editors tools lexed nvim vscode comms"
+
+for repo in $REPOS; do
+  if [ -d "$repo" ]; then
+    echo ""
+    echo "========================================"
+    echo "Running in $repo/"
+    echo "========================================"
+    cd "$MAIN_DIR/$repo" || continue
+    eval "$COMMAND"
+    cd "$MAIN_DIR" || exit 1
+  else
+    echo "Warning: $repo/ directory not found, skipping..."
+  fi
+done
+
+echo ""
+echo "========================================"
+echo "Done"
+echo "========================================"
