@@ -196,3 +196,97 @@ def get_tag_name(component, version):
          return f"{component}-v{version}"
     else:
          return f"v{version}"
+
+
+def get_latest_tag(component):
+    """Get the latest git tag for a component."""
+    repo_root, _ = get_repo_details(component)
+
+    # First try component-prefixed tags (for monorepos or prefixed releases)
+    prefix = f"{component}-v"
+    try:
+        result = run_command(f"git tag --list '{prefix}*' --sort=-v:refname | head -1", cwd=repo_root, check=False)
+        if result:
+            return result
+    except Exception:
+        pass
+
+    # Fall back to v* tags for single-component repos
+    try:
+        result = run_command("git tag --list 'v*' --sort=-v:refname | head -1", cwd=repo_root, check=False)
+        # Filter out test tags like v100.0.0
+        if result and not result.startswith("v100"):
+            return result
+        # Try second tag
+        result = run_command("git tag --list 'v*' --sort=-v:refname | head -2 | tail -1", cwd=repo_root, check=False)
+        if result and not result.startswith("v100"):
+            return result
+    except Exception:
+        pass
+    return None
+
+
+def read_crate_dependencies(crate_name):
+    """Read dependencies from a crate's Cargo.toml or workspace manifest."""
+    if crate_name not in CRATES:
+        return {}
+
+    # Get the workspace manifest (where deps are actually defined)
+    workspace_path = CRATE_TO_WORKSPACE.get(crate_name)
+    if not workspace_path:
+        workspace_path = CRATES[crate_name]
+
+    full_path = os.path.join(ROOT_DIR, workspace_path)
+    with open(full_path, 'r') as f:
+        content = f.read()
+
+    deps = {}
+    # Look for lex-* dependencies
+    for dep in ["lex-core", "lex-babel", "lex-analysis", "lex-config"]:
+        if dep == crate_name:
+            continue
+        # Match: dep = "version" or dep = { version = "version", ... }
+        simple_match = re.search(rf'{re.escape(dep)}\s*=\s*"([^"]+)"', content)
+        table_match = re.search(rf'{re.escape(dep)}\s*=\s*\{{[^}}]*version\s*=\s*"([^"]+)"', content)
+        if simple_match:
+            deps[dep] = simple_match.group(1)
+        elif table_match:
+            deps[dep] = table_match.group(1)
+
+    return deps
+
+
+def read_tool_lsp_version(tool_name):
+    """Read the lex-lsp version a tool depends on."""
+    if tool_name not in TOOLS:
+        return None
+
+    config = TOOLS[tool_name]
+    lsp_dep_file = config.get("lsp_dep_file")
+    if not lsp_dep_file:
+        return None
+
+    full_path = os.path.join(ROOT_DIR, lsp_dep_file)
+    if not os.path.exists(full_path):
+        return None
+
+    with open(full_path, 'r') as f:
+        content = f.read()
+
+    if lsp_dep_file.endswith(".json"):
+        import json
+        try:
+            data = json.loads(content)
+            ver = data.get("lexLspVersion", "")
+            # Strip 'v' prefix if present
+            return ver.lstrip("v") if ver else None
+        except Exception:
+            return None
+    elif lsp_dep_file.endswith(".sh"):
+        match = re.search(r'LEX_LSP_VERSION="([^"]+)"', content)
+        return match.group(1) if match else None
+    elif lsp_dep_file.endswith(".lua"):
+        match = re.search(r'lex_lsp_version\s*=\s*"([^"]+)"', content)
+        return match.group(1) if match else None
+
+    return None
