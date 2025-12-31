@@ -1,9 +1,11 @@
-#!/usr/bin/env python3
 """
 Release status checker - shows versions, tags, and dependency status.
 """
-import sys
-import _common
+
+from . import common
+
+# Crate order for display (dependency chain)
+CRATE_ORDER = ["lex-core", "lex-babel", "lex-config", "lex-cli", "lex-analysis", "lex-lsp"]
 
 
 def format_tag_status(version, tag):
@@ -34,21 +36,19 @@ def format_deps(deps, indent="    "):
     return "\n".join(lines)
 
 
-def main():
+def check_status():
+    """Print release status report."""
     print("Release Status Report")
     print("=====================")
 
-    # Define dependency chain for display order
-    crate_order = ["lex-core", "lex-babel", "lex-config", "lex-cli", "lex-analysis", "lex-lsp"]
-
     # 1. Crates
     print("\n[Crates]")
-    for crate in crate_order:
-        if crate not in _common.CRATES:
+    for crate in CRATE_ORDER:
+        if crate not in common.CRATES:
             continue
-        ver = _common.get_current_version(crate)
-        tag = _common.get_latest_tag(crate)
-        deps = _common.read_crate_dependencies(crate)
+        ver = common.get_current_version(crate)
+        tag = common.get_latest_tag(crate)
+        deps = common.read_crate_dependencies(crate)
 
         status = format_tag_status(ver, tag)
         print(f"{crate:<15} : {status}")
@@ -59,10 +59,10 @@ def main():
 
     # 2. Clients
     print("\n[Clients]")
-    for tool in _common.TOOLS:
-        ver = _common.get_current_version(tool)
-        tag = _common.get_latest_tag(tool)
-        lsp_ver = _common.read_tool_lsp_version(tool)
+    for tool in common.TOOLS:
+        ver = common.get_current_version(tool)
+        tag = common.get_latest_tag(tool)
+        lsp_ver = common.read_tool_lsp_version(tool)
 
         status = format_tag_status(ver, tag)
         print(f"{tool:<15} : {status}")
@@ -75,36 +75,36 @@ def main():
     issues = []
 
     # Check for stale LSP versions in clients
-    lsp_ver = _common.get_current_version("lex-lsp")
-    for tool in _common.TOOLS:
-        tool_lsp = _common.read_tool_lsp_version(tool)
+    lsp_ver = common.get_current_version("lex-lsp")
+    for tool in common.TOOLS:
+        tool_lsp = common.read_tool_lsp_version(tool)
         if tool_lsp and tool_lsp != lsp_ver:
             issues.append(f"{tool}: lex-lsp {tool_lsp} -> {lsp_ver}")
 
     # Check for stale crate dependencies
-    for crate in crate_order:
-        if crate not in _common.CRATES:
+    for crate in CRATE_ORDER:
+        if crate not in common.CRATES:
             continue
-        deps = _common.read_crate_dependencies(crate)
+        deps = common.read_crate_dependencies(crate)
         for dep, dep_ver in deps.items():
-            current_dep_ver = _common.get_current_version(dep)
+            current_dep_ver = common.get_current_version(dep)
             if dep_ver != current_dep_ver:
                 issues.append(f"{crate}: {dep} {dep_ver} -> {current_dep_ver}")
 
     # Check for version/tag mismatches
-    for crate in crate_order:
-        if crate not in _common.CRATES:
+    for crate in CRATE_ORDER:
+        if crate not in common.CRATES:
             continue
-        ver = _common.get_current_version(crate)
-        tag = _common.get_latest_tag(crate)
-        expected_tag = _common.get_tag_name(crate, ver)
+        ver = common.get_current_version(crate)
+        tag = common.get_latest_tag(crate)
+        expected_tag = common.get_tag_name(crate, ver)
         if tag != expected_tag:
             issues.append(f"{crate}: missing tag {expected_tag} (latest: {tag})")
 
-    for tool in _common.TOOLS:
-        ver = _common.get_current_version(tool)
-        tag = _common.get_latest_tag(tool)
-        expected_tag = _common.get_tag_name(tool, ver)
+    for tool in common.TOOLS:
+        ver = common.get_current_version(tool)
+        tag = common.get_latest_tag(tool)
+        expected_tag = common.get_tag_name(tool, ver)
         if tag != expected_tag:
             issues.append(f"{tool}: missing tag {expected_tag} (latest: {tag})")
 
@@ -113,7 +113,3 @@ def main():
             print(f"  - {issue}")
     else:
         print("  None - all versions aligned!")
-
-
-if __name__ == "__main__":
-    main()

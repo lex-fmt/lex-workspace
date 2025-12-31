@@ -1,10 +1,14 @@
+"""
+Common utilities and registry for release management.
+"""
 
+import json
 import os
+import re
 import subprocess
 import sys
-import re
 
-# Mapping of repo/folder name to metadata
+# Mapping of crate name to its Cargo.toml path (relative to ROOT_DIR)
 CRATES = {
     "lex-core": "core/Cargo.toml",
     "lex-babel": "tools/lex-babel/Cargo.toml",
@@ -24,19 +28,19 @@ CRATE_TO_WORKSPACE = {
     "lex-lsp": "editors/Cargo.toml",
 }
 
-# Mapping for Tools (Editors/Clients)
+# Mapping for client tools (editors/GUIs)
 TOOLS = {
     "lexed": {
         "path": "lexed",
         "version_file": "lexed/package.json",
-        "type": "package.json", 
-        "lsp_dep_file": "lexed/shared/src/lex-version.json" 
+        "type": "package.json",
+        "lsp_dep_file": "lexed/shared/src/lex-version.json"
     },
     "vscode": {
         "path": "vscode",
         "version_file": "vscode/package.json",
         "type": "package.json",
-        "lsp_dep_file": "vscode/scripts/download-lex-lsp.sh" 
+        "lsp_dep_file": "vscode/scripts/download-lex-lsp.sh"
     },
     "nvim": {
         "path": "nvim",
@@ -46,9 +50,12 @@ TOOLS = {
     }
 }
 
-ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"))
+# ROOT_DIR is the lex-workspace root (parent of scripts/)
+ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../"))
+
 
 def run_command(cmd, cwd=None, capture_output=True, check=True):
+    """Run a shell command and return output."""
     if cwd is None:
         cwd = ROOT_DIR
     try:
@@ -67,14 +74,18 @@ def run_command(cmd, cwd=None, capture_output=True, check=True):
         else:
             raise
 
+
 def check_semver_installed():
+    """Verify semver CLI is available."""
     try:
         run_command("semver --help", check=False)
     except Exception:
         print("Error: 'semver' command not found. Please install it (e.g. npm install -g semver).")
         sys.exit(1)
 
+
 def read_crate_version(crate_name):
+    """Read version from a crate's Cargo.toml."""
     if crate_name not in CRATES:
         raise ValueError(f"Unknown crate: {crate_name}")
     toml_path = os.path.join(ROOT_DIR, CRATES[crate_name])
@@ -89,14 +100,17 @@ def read_crate_version(crate_name):
         return version_match.group(1)
     raise ValueError(f"Could not find version in {toml_path}")
 
+
 def read_json_version(file_path):
-    import json
+    """Read version from a package.json file."""
     full_path = os.path.join(ROOT_DIR, file_path)
     with open(full_path, 'r') as f:
         data = json.load(f)
         return data.get("version")
 
+
 def read_lua_version(file_path):
+    """Read version from a Lua file."""
     full_path = os.path.join(ROOT_DIR, file_path)
     with open(full_path, 'r') as f:
         content = f.read()
@@ -105,7 +119,9 @@ def read_lua_version(file_path):
         return match.group(1)
     return None
 
+
 def get_current_version(component):
+    """Get current version for any component (crate or tool)."""
     check_semver_installed()
     if component in CRATES:
         return read_crate_version(component)
@@ -118,7 +134,9 @@ def get_current_version(component):
     else:
         raise ValueError(f"Unknown component: {component}")
 
+
 def replace_in_file(file_path, pattern, replacement):
+    """Replace text in a file using regex."""
     full_path = os.path.join(ROOT_DIR, file_path)
     with open(full_path, 'r') as f:
         content = f.read()
@@ -129,6 +147,7 @@ def replace_in_file(file_path, pattern, replacement):
         f.write(new_content)
     return True
 
+
 def get_repo_details(component):
     """Returns (repo_root_abs_path, relative_path_in_repo) for a component."""
     if component in CRATES:
@@ -137,72 +156,65 @@ def get_repo_details(component):
         repo_dir = parts[0]
         repo_root = os.path.join(ROOT_DIR, repo_dir)
         if len(parts) > 2:
-             relative_crate_path = os.path.dirname("/".join(parts[1:]))
+            relative_crate_path = os.path.dirname("/".join(parts[1:]))
         else:
-             relative_crate_path = "."
+            relative_crate_path = "."
         return repo_root, relative_crate_path
     elif component in TOOLS:
         config = TOOLS[component]
         repo_dir = config["path"].split("/")[0]
         repo_root = os.path.join(ROOT_DIR, repo_dir)
-        # Tools are usually at root of their repo or handled specifically?
-        # lexed -> lexed/ package.json
-        # nvim -> nvim/
-        # vscode -> vscode/
-        # Check if the repo path IS the component path? 
-        # TOOLS definitions: "vscode": { "path": "vscode" ... }
-        # Repo root is likely ROOT_DIR/vscode. relative path is .?
         return repo_root, "."
     raise ValueError(f"Unknown component {component}")
 
-    raise ValueError(f"Unknown component {component}")
 
 def _build_repo_map():
+    """Build map of repo directory to components."""
     repo_map = {}
-    
+
     # Process Crates
     for comp, path in CRATES.items():
-        # path is like "core/Cargo.toml" or "tools/lex-babel/Cargo.toml"
         repo_dir = path.split("/")[0]
         if repo_dir not in repo_map:
             repo_map[repo_dir] = set()
         repo_map[repo_dir].add(comp)
-        
+
     # Process Tools
     for comp, config in TOOLS.items():
-        # config["path"] is like "lexed" or "vscode"
         repo_dir = config["path"].split("/")[0]
         if repo_dir not in repo_map:
-             repo_map[repo_dir] = set()
+            repo_map[repo_dir] = set()
         repo_map[repo_dir].add(comp)
-        
+
     return repo_map
+
 
 _REPO_ENTRIES = _build_repo_map()
 
+
 def is_monorepo(component):
-    # Find which repo this component belongs to
+    """Check if component is in a monorepo (multiple components in same repo)."""
     repo_root, _ = get_repo_details(component)
     repo_name = os.path.basename(repo_root)
-    
-    # Check count in cached map
+
     if repo_name in _REPO_ENTRIES:
         return len(_REPO_ENTRIES[repo_name]) > 1
     return False
 
+
 def get_tag_name(component, version):
-    """Standardized tag name: component-vVersion or vVersion"""
+    """Get standardized tag name: component-vVersion or vVersion."""
     if is_monorepo(component):
-         return f"{component}-v{version}"
+        return f"{component}-v{version}"
     else:
-         return f"v{version}"
+        return f"v{version}"
 
 
 def get_latest_tag(component):
     """Get the latest git tag for a component."""
     repo_root, _ = get_repo_details(component)
 
-    # First try component-prefixed tags (for monorepos or prefixed releases)
+    # First try component-prefixed tags (for monorepos)
     prefix = f"{component}-v"
     try:
         result = run_command(f"git tag --list '{prefix}*' --sort=-v:refname | head -1", cwd=repo_root, check=False)
@@ -227,11 +239,10 @@ def get_latest_tag(component):
 
 
 def read_crate_dependencies(crate_name):
-    """Read dependencies from a crate's Cargo.toml or workspace manifest."""
+    """Read lex-* dependencies from a crate's Cargo.toml or workspace manifest."""
     if crate_name not in CRATES:
         return {}
 
-    # Get the workspace manifest (where deps are actually defined)
     workspace_path = CRATE_TO_WORKSPACE.get(crate_name)
     if not workspace_path:
         workspace_path = CRATES[crate_name]
@@ -241,7 +252,6 @@ def read_crate_dependencies(crate_name):
         content = f.read()
 
     deps = {}
-    # Look for lex-* dependencies
     for dep in ["lex-core", "lex-babel", "lex-analysis", "lex-config"]:
         if dep == crate_name:
             continue
@@ -254,6 +264,19 @@ def read_crate_dependencies(crate_name):
             deps[dep] = table_match.group(1)
 
     return deps
+
+
+def extract_version_from_tag(tag):
+    """Extract version number from a tag like 'lex-lsp-v0.2.7' or 'v0.2.7'."""
+    if not tag:
+        return None
+    # Handle component-prefixed tags like "lex-lsp-v0.2.7"
+    if "-v" in tag:
+        return tag.split("-v")[-1]
+    # Handle simple v-prefixed tags like "v0.2.7"
+    if tag.startswith("v"):
+        return tag[1:]
+    return tag
 
 
 def read_tool_lsp_version(tool_name):
@@ -273,20 +296,23 @@ def read_tool_lsp_version(tool_name):
     with open(full_path, 'r') as f:
         content = f.read()
 
+    raw_version = None
     if lsp_dep_file.endswith(".json"):
-        import json
         try:
             data = json.loads(content)
-            ver = data.get("lexLspVersion", "")
-            # Strip 'v' prefix if present
-            return ver.lstrip("v") if ver else None
+            raw_version = data.get("lexLspVersion", "")
         except Exception:
             return None
     elif lsp_dep_file.endswith(".sh"):
         match = re.search(r'LEX_LSP_VERSION="([^"]+)"', content)
-        return match.group(1) if match else None
+        raw_version = match.group(1) if match else None
     elif lsp_dep_file.endswith(".lua"):
         match = re.search(r'lex_lsp_version\s*=\s*"([^"]+)"', content)
-        return match.group(1) if match else None
+        raw_version = match.group(1) if match else None
 
-    return None
+    return extract_version_from_tag(raw_version)
+
+
+def get_all_components():
+    """Get list of all component names."""
+    return list(CRATES.keys()) + list(TOOLS.keys())
