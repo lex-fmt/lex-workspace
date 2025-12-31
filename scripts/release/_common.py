@@ -155,8 +155,44 @@ def get_repo_details(component):
         return repo_root, "."
     raise ValueError(f"Unknown component {component}")
 
+    raise ValueError(f"Unknown component {component}")
+
+def _build_repo_map():
+    repo_map = {}
+    
+    # Process Crates
+    for comp, path in CRATES.items():
+        # path is like "core/Cargo.toml" or "tools/lex-babel/Cargo.toml"
+        repo_dir = path.split("/")[0]
+        if repo_dir not in repo_map:
+            repo_map[repo_dir] = set()
+        repo_map[repo_dir].add(comp)
+        
+    # Process Tools
+    for comp, config in TOOLS.items():
+        # config["path"] is like "lexed" or "vscode"
+        repo_dir = config["path"].split("/")[0]
+        if repo_dir not in repo_map:
+             repo_map[repo_dir] = set()
+        repo_map[repo_dir].add(comp)
+        
+    return repo_map
+
+_REPO_ENTRIES = _build_repo_map()
+
+def is_monorepo(component):
+    # Find which repo this component belongs to
+    repo_root, _ = get_repo_details(component)
+    repo_name = os.path.basename(repo_root)
+    
+    # Check count in cached map
+    if repo_name in _REPO_ENTRIES:
+        return len(_REPO_ENTRIES[repo_name]) > 1
+    return False
+
 def get_tag_name(component, version):
-    """Standardized tag name: component-vVersion"""
-    # Always prefix? Or only for multi-crate repos?
-    # User requested standardized naming. Prefixing everything is safest.
-    return f"{component}-v{version}"
+    """Standardized tag name: component-vVersion or vVersion"""
+    if is_monorepo(component):
+         return f"{component}-v{version}"
+    else:
+         return f"v{version}"
