@@ -1,0 +1,71 @@
+#!/usr/bin/env sh
+
+# Verify that all sub-repositories have no dirty files and current branch is pushed
+# Usage: ./scripts/ensure-repos-clean
+
+MAIN_DIR="$(pwd)"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+EXIT_CODE=0
+
+# Load list of sub-repositories
+REPOS=$(cat "$SCRIPT_DIR/repos.txt")
+
+echo "Checking repository status..."
+echo ""
+
+for repo in $REPOS; do
+  if [ ! -d "$repo" ]; then
+    echo "⚠️  $repo/ - Directory not found, skipping..."
+    continue
+  fi
+  
+  cd "$MAIN_DIR/$repo" || continue
+  
+  # Check for uncommitted changes
+  if ! git diff-index --quiet HEAD -- 2>/dev/null; then
+    echo "❌ $repo/ - Has uncommitted changes"
+    EXIT_CODE=1
+  # Check for untracked files
+  elif [ -n "$(git ls-files --others --exclude-standard)" ]; then
+    echo "❌ $repo/ - Has untracked files"
+    EXIT_CODE=1
+  else
+    # Check if current branch is pushed
+    CURRENT_BRANCH=$(git branch --show-current)
+    
+    if [ -z "$CURRENT_BRANCH" ]; then
+      echo "⚠️  $repo/ - Not on any branch (detached HEAD)"
+      EXIT_CODE=1
+    else
+      # Get the upstream branch
+      UPSTREAM=$(git rev-parse --abbrev-ref --symbolic-full-name @{u} 2>/dev/null)
+      
+      if [ -z "$UPSTREAM" ]; then
+        echo "❌ $repo/ - Branch '$CURRENT_BRANCH' has no upstream"
+        EXIT_CODE=1
+      else
+        # Check if local is ahead of remote
+        LOCAL=$(git rev-parse @)
+        REMOTE=$(git rev-parse @{u})
+        
+        if [ "$LOCAL" != "$REMOTE" ]; then
+          echo "❌ $repo/ - Branch '$CURRENT_BRANCH' is not in sync with remote"
+          EXIT_CODE=1
+        else
+          echo "✅ $repo/ - Clean and pushed (branch: $CURRENT_BRANCH)"
+        fi
+      fi
+    fi
+  fi
+  
+  cd "$MAIN_DIR" || exit 1
+done
+
+echo ""
+if [ $EXIT_CODE -eq 0 ]; then
+  echo "✅ All repositories are clean and pushed!"
+else
+  echo "❌ Some repositories have issues. Please review above."
+fi
+
+exit $EXIT_CODE

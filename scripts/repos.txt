@@ -1,0 +1,7 @@
+core
+editors
+tools
+lexed
+nvim
+vscode
+comms

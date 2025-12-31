@@ -11,9 +11,10 @@ fi
 
 COMMAND="$1"
 MAIN_DIR="$(pwd)"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
-# List of sub-repositories from README.txt
-REPOS="core editors tools lexed nvim vscode comms"
+# Load list of sub-repositories
+REPOS=$(cat "$SCRIPT_DIR/repos.txt")
 
 for repo in $REPOS; do
   if [ -d "$repo" ]; then
