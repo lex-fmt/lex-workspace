@@ -88,6 +88,11 @@ def cmd_propagate_lsp(args):
     dependencies.propagate_lsp()
 
 
+def cmd_propagate_cli(args):
+    """Propagate CLI version to client tools."""
+    dependencies.propagate_cli()
+
+
 def cmd_release_all(args):
     """Full release orchestration."""
     orchestrate.release_all()
@@ -154,6 +159,10 @@ def main(argv=None):
     # propagate-lsp
     p_prop_lsp = subparsers.add_parser("propagate-lsp", help="Propagate LSP version to clients")
     p_prop_lsp.set_defaults(func=cmd_propagate_lsp)
+
+    # propagate-cli
+    p_prop_cli = subparsers.add_parser("propagate-cli", help="Propagate CLI version to clients")
+    p_prop_cli.set_defaults(func=cmd_propagate_cli)
 
     # release-all
     p_release_all = subparsers.add_parser("release-all", help="Full release orchestration")

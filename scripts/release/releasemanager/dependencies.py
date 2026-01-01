@@ -17,12 +17,11 @@ CRATE_DEPS = {
     "lex-lsp": ["lex-core", "lex-babel", "lex-analysis"],
 }
 
-# Client -> LSP dependency key (for display/logging)
-CLIENT_LSP_KEYS = {
-    "lexed": "lexLspVersion",  # lex-version.json key
-    "vscode": "LEX_LSP_VERSION",  # download-lex-lsp.sh env var
-    "nvim": "lex_lsp_version",  # init.lua var
-}
+# Tools that depend on lex-lsp binary
+LSP_CLIENTS = ["lexed", "vscode", "nvim"]
+
+# Tools that depend on lex-cli binary
+CLI_CLIENTS = ["comms"]
 
 
 def update_toml_dep(path, dep_name, new_version):
@@ -89,43 +88,39 @@ def update_cargo_dep(crate, dep_name, new_version):
 
 
 def update_tool_dep(tool, dep_key, new_version):
-    """Update LSP version dependency in a client tool.
+    """Update a dependency version in a tool's lex-deps.json.
+
+    Args:
+        tool: Tool name (lexed, vscode, nvim, comms)
+        dep_key: Key in lex-deps.json (e.g., "lex-lsp", "lex-cli")
+        new_version: Version string (without tag prefix, e.g., "0.2.7")
 
     Note: Tools store the full tag name (e.g., "lex-lsp-v0.2.7") not just the version.
     This is used for GitHub release downloads.
     """
     config = common.TOOLS[tool]
-    path = config.get("lsp_dep_file")
-    if not path:
-        print(f"No lsp_dep_file configured for {tool}")
+    deps_file = config.get("deps_file")
+    if not deps_file:
+        print(f"No deps_file configured for {tool}")
         return
 
-    full_path = os.path.join(common.ROOT_DIR, path)
+    full_path = os.path.join(common.ROOT_DIR, deps_file)
 
-    # Tools store the full tag name for GitHub release downloads
-    tag_name = f"lex-lsp-v{new_version}"
+    # Construct full tag name for GitHub release downloads
+    tag_name = f"{dep_key}-v{new_version}"
 
-    if path.endswith(".json"):
-        with open(full_path, 'r') as f:
-            data = json.load(f)
-        # lexed uses "lexLspVersion" key
-        if "lexLspVersion" in data:
-            data["lexLspVersion"] = tag_name
-        with open(full_path, 'w') as f:
-            json.dump(data, f, indent=2)
-            f.write('\n')
+    with open(full_path, 'r') as f:
+        data = json.load(f)
 
-    elif path.endswith(".sh"):
-        with open(full_path, 'r') as f:
-            content = f.read()
-        pattern = r'(LEX_LSP_VERSION=")[^"]+"'
-        replacement = f'\\g<1>{tag_name}"'
-        new_content = re.sub(pattern, replacement, content)
-        with open(full_path, 'w') as f:
-            f.write(new_content)
+    if dep_key not in data:
+        print(f"Warning: Key '{dep_key}' not found in {deps_file}")
+        return
 
-    elif path.endswith(".lua"):
-        common.replace_in_file(path, r'(lex_lsp_version\s*=\s*)"[^"]+"', f'\\g<1>"{tag_name}"')
+    data[dep_key] = tag_name
+
+    with open(full_path, 'w') as f:
+        json.dump(data, f, indent=2)
+        f.write('\n')
 
     print(f"Updated {dep_key} to {tag_name} in {tool}")
 
@@ -171,14 +166,29 @@ def propagate_deps():
 
 def propagate_lsp():
     """Propagate latest LSP version to client tools."""
-    print("Propagating latest LSP version to client tools...")
+    print("Propagating latest lex-lsp version to client tools...")
 
     lsp_version = common.get_current_version("lex-lsp")
     print(f"Latest lex-lsp: {lsp_version}")
 
-    for client, dep_key in CLIENT_LSP_KEYS.items():
+    for client in LSP_CLIENTS:
         print(f"Updating {client} to use lex-lsp {lsp_version}...")
         try:
-            update_tool_dep(client, dep_key, lsp_version)
+            update_tool_dep(client, "lex-lsp", lsp_version)
+        except Exception as e:
+            print(f"Failed to update {client}: {e}")
+
+
+def propagate_cli():
+    """Propagate latest CLI version to client tools."""
+    print("Propagating latest lex-cli version to client tools...")
+
+    cli_version = common.get_current_version("lex-cli")
+    print(f"Latest lex-cli: {cli_version}")
+
+    for client in CLI_CLIENTS:
+        print(f"Updating {client} to use lex-cli {cli_version}...")
+        try:
+            update_tool_dep(client, "lex-cli", cli_version)
         except Exception as e:
             print(f"Failed to update {client}: {e}")

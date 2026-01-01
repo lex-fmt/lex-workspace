@@ -29,24 +29,31 @@ CRATE_TO_WORKSPACE = {
 }
 
 # Mapping for client tools (editors/GUIs)
+# All tools now use shared/lex-deps.json for binary version pinning
 TOOLS = {
     "lexed": {
         "path": "lexed",
         "version_file": "lexed/package.json",
         "type": "package.json",
-        "lsp_dep_file": "lexed/shared/src/lex-version.json"
+        "deps_file": "lexed/shared/lex-deps.json"
     },
     "vscode": {
         "path": "vscode",
         "version_file": "vscode/package.json",
         "type": "package.json",
-        "lsp_dep_file": "vscode/scripts/download-lex-lsp.sh"
+        "deps_file": "vscode/shared/lex-deps.json"
     },
     "nvim": {
         "path": "nvim",
         "version_file": "nvim/lua/lex/init.lua",
         "type": "lua",
-        "lsp_dep_file": "nvim/lua/lex/init.lua"
+        "deps_file": "nvim/shared/lex-deps.json"
+    },
+    "comms": {
+        "path": "comms",
+        "version_file": None,  # comms doesn't have a version
+        "type": None,
+        "deps_file": "comms/shared/lex-deps.json"
     }
 }
 
@@ -279,38 +286,43 @@ def extract_version_from_tag(tag):
     return tag
 
 
-def read_tool_lsp_version(tool_name):
-    """Read the lex-lsp version a tool depends on."""
+def read_tool_dep_version(tool_name, dep_key):
+    """Read a dependency version from a tool's lex-deps.json.
+
+    Args:
+        tool_name: Name of the tool (lexed, vscode, nvim, comms)
+        dep_key: Key in lex-deps.json (e.g., "lex-lsp", "lex-cli")
+
+    Returns:
+        Version string (without tag prefix) or None if not found.
+    """
     if tool_name not in TOOLS:
         return None
 
     config = TOOLS[tool_name]
-    lsp_dep_file = config.get("lsp_dep_file")
-    if not lsp_dep_file:
+    deps_file = config.get("deps_file")
+    if not deps_file:
         return None
 
-    full_path = os.path.join(ROOT_DIR, lsp_dep_file)
+    full_path = os.path.join(ROOT_DIR, deps_file)
     if not os.path.exists(full_path):
         return None
 
     with open(full_path, 'r') as f:
-        content = f.read()
+        data = json.load(f)
 
-    raw_version = None
-    if lsp_dep_file.endswith(".json"):
-        try:
-            data = json.loads(content)
-            raw_version = data.get("lexLspVersion", "")
-        except Exception:
-            return None
-    elif lsp_dep_file.endswith(".sh"):
-        match = re.search(r'LEX_LSP_VERSION="([^"]+)"', content)
-        raw_version = match.group(1) if match else None
-    elif lsp_dep_file.endswith(".lua"):
-        match = re.search(r'lex_lsp_version\s*=\s*"([^"]+)"', content)
-        raw_version = match.group(1) if match else None
-
+    raw_version = data.get(dep_key)
     return extract_version_from_tag(raw_version)
+
+
+def read_tool_lsp_version(tool_name):
+    """Read the lex-lsp version a tool depends on."""
+    return read_tool_dep_version(tool_name, "lex-lsp")
+
+
+def read_tool_cli_version(tool_name):
+    """Read the lex-cli version a tool depends on."""
+    return read_tool_dep_version(tool_name, "lex-cli")
 
 
 def get_all_components():
