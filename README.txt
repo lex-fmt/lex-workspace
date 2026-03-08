@@ -328,4 +328,10 @@ All crates use official sample files from comms/specs for tests:
   - trifecta: Three focused test files covering edge cases
   - elements/: Isolated tests for individual Lex elements
 
-Tests load fixtures via the testing module in lex-parser.
+Specs are shared via git submodule: both core/ and tools/ have a `comms`
+submodule pointing to the comms repo. The setup script initializes these
+automatically. To update specs in a consuming repo:
+
+    cd core/comms && git pull origin main && cd .. && git add comms && git commit
+
+Tests load fixtures via the testing module in lex-parser (paths: comms/specs/...).
