@@ -37,7 +37,7 @@ tools/lex-config/          — Config loader (embeds defaults)
 
 - Cross-component dev: `./scripts/build-local.sh` patches editors/ to use local core/tools crates
 - Release order: core → tools → editors → clients (each repo tagged independently)
-- Test fixtures live in `comms/specs/` — load via the testing module in lex-parser
+- Test fixtures live in `comms/specs/` — core and tools access them via git submodule (`comms/` in each repo)
 
 ## CLI Quick Reference
 
