@@ -111,6 +111,16 @@ if [[ $failed -gt 0 ]]; then
   exit 1
 fi
 
+# Initialize submodules (core and tools reference comms/specs via submodule)
+echo ""
+echo "Initializing submodules..."
+for repo in core tools; do
+  if [[ -d "$repo/.git" ]]; then
+    (cd "$repo" && git submodule update --init)
+    log "Initialized submodules in $repo"
+  fi
+done
+
 # Check for Rust toolchain
 if ! command -v cargo >/dev/null 2>&1; then
   echo ""
