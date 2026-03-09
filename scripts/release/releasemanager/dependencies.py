@@ -95,7 +95,7 @@ def update_tool_dep(tool, dep_key, new_version):
         dep_key: Key in lex-deps.json (e.g., "lex-lsp", "lex-cli")
         new_version: Version string (without tag prefix, e.g., "0.2.7")
 
-    Note: Tools store the full tag name (e.g., "lex-lsp-v0.2.7") not just the version.
+    Note: Tools store the full tag name (e.g., "v0.2.7") not just the version.
     This is used for GitHub release downloads.
     """
     config = common.TOOLS[tool]
@@ -107,7 +107,7 @@ def update_tool_dep(tool, dep_key, new_version):
     full_path = os.path.join(common.ROOT_DIR, deps_file)
 
     # Construct full tag name for GitHub release downloads
-    tag_name = f"{dep_key}-v{new_version}"
+    tag_name = common.get_tag_name(dep_key, new_version)
 
     with open(full_path, 'r') as f:
         data = json.load(f)

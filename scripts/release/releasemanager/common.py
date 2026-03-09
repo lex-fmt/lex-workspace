@@ -198,11 +198,17 @@ def _build_repo_map():
 
 _REPO_ENTRIES = _build_repo_map()
 
+# Repos that use plain v* tags despite having multiple components
+UNIFIED_TAG_REPOS = {"editors"}
+
 
 def is_monorepo(component):
     """Check if component is in a monorepo (multiple components in same repo)."""
     repo_root, _ = get_repo_details(component)
     repo_name = os.path.basename(repo_root)
+
+    if repo_name in UNIFIED_TAG_REPOS:
+        return False
 
     if repo_name in _REPO_ENTRIES:
         return len(_REPO_ENTRIES[repo_name]) > 1
